@@ -1,11 +1,13 @@
 __pycache__/
 *.pyc
 venv/
+.venv*/
 .env/
 .idea/
 .vscode/
 dist/
 build/
+*.egg-info/
 *.spec
 *.log
 data/logs.json

@@ -64,14 +64,31 @@ Requisitos no sistema: **Git** no PATH; para “Abrir no VS Code”, o comando `
 
 Linha de comando sobre o mesmo núcleo (`project_git_core`), sem CustomTkinter.
 
+### Instalação (modo dev)
+
+Na raiz do repositório (instale o core antes da CLI, para o pip resolver `project-git-core`):
+
+```bash
+pip install -e packages/core
+pip install -e packages/cli
+```
+
+### Uso (após `pip install -e`)
+
+```bash
+projectgit overview C:\src\projects\auratime
+projectgit status C:\src\meu-repo
+projectgit pull C:\src\meu-repo
+projectgit sync C:\src\meu-repo
+projectgit clone https://github.com/org/repo.git C:\src\repo
+projectgit commit C:\src\meu-repo -m "mensagem do commit"
+```
+
+### Uso sem pip (somente clone do repo)
+
 ```bash
 cd packages/cli
 python -m projectgit.main overview "C:\src\meu-repo"
-python -m projectgit.main status "C:\src\meu-repo"
-python -m projectgit.main pull "C:\src\meu-repo"
-python -m projectgit.main sync "C:\src\meu-repo"
-python -m projectgit.main clone "https://github.com/org/repo.git" "C:\src\repo"
-python -m projectgit.main commit "C:\src\meu-repo" -m "mensagem do commit"
 ```
 
 Detalhes: [packages/cli/README.md](packages/cli/README.md).

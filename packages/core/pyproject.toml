@@ -3,19 +3,12 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "projectgit"
+name = "project-git-core"
 version = "0.1.0"
-description = "CLI for Project Git Manager"
+description = "Core Git logic for Project Git Manager"
 authors = [{ name = "Franklin" }]
-readme = "README.md"
 requires-python = ">=3.9"
-dependencies = [
-    "project-git-core",
-]
-
-[project.scripts]
-projectgit = "projectgit.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["projectgit*"]
+include = ["project_git_core*"]
