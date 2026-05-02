@@ -1,0 +1,26 @@
+# Instalação futura (monorepo): a partir de packages/cli, após publicar/empacotar o core:
+#   pip install -e ../core   # quando project_git_core for um pacote instalável
+#   pip install -e .
+# Console script:
+#   projectgit overview C:\src\meu-repo
+#
+# Hoje a execução suportada sem pip é: cd packages/cli && python -m projectgit ...
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "projectgit-cli"
+version = "0.1.0"
+description = "CLI de workflows Git para o Project Git Manager"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+projectgit = "projectgit.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["projectgit*"]

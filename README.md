@@ -60,6 +60,22 @@ No Linux/macOS, ative o ambiente virtual com `source venv/bin/activate`.
 
 Requisitos no sistema: **Git** no PATH; para “Abrir no VS Code”, o comando `code` no PATH.
 
+## CLI (`projectgit`)
+
+Linha de comando sobre o mesmo núcleo (`project_git_core`), sem CustomTkinter.
+
+```bash
+cd packages/cli
+python -m projectgit.main overview "C:\src\meu-repo"
+python -m projectgit.main status "C:\src\meu-repo"
+python -m projectgit.main pull "C:\src\meu-repo"
+python -m projectgit.main sync "C:\src\meu-repo"
+python -m projectgit.main clone "https://github.com/org/repo.git" "C:\src\repo"
+python -m projectgit.main commit "C:\src\meu-repo" -m "mensagem do commit"
+```
+
+Detalhes: [packages/cli/README.md](packages/cli/README.md).
+
 ## Estrutura do repositório
 
 ```
@@ -79,7 +95,8 @@ project_git_manager/
   apps/
     desktop/          # reservado — Electron + React (futuro)
   packages/
-    core/             # reservado — contratos / código compartilhado (futuro)
+    cli/              # CLI Python projectgit
+    core/             # project_git_core — operações Git reutilizáveis
     python_worker/    # reservado — worker Python (futuro)
   data/               # reservado — persistência da nova stack (futuro)
 ```

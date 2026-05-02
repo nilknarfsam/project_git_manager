@@ -15,9 +15,12 @@ Plano evolutivo em fases. A ordem preserva um produto utilizável em cada etapa.
 - `main.py` do legado adiciona `packages/core` ao `sys.path` para importar o núcleo a partir da raiz do monorepo.
 - Testes mínimos em `tests/test_core_imports.py`.
 
-## Fase 3 — Criar CLI Python
+## Fase 3 — Criar CLI Python (**concluída**)
 
-- Interface de linha de comando (ex.: `python -m ...`) que exponha operações principais com saída estruturada (JSON), para integração futura com Electron sem acoplar à CustomTkinter.
+- Pacote `packages/cli/projectgit/`: subcomandos `status`, `sync`, `clone`, `pull`, `commit`, `overview` via `argparse`, usando apenas `project_git_core`.
+- Execução: a partir de `packages/cli`, `python -m projectgit.main …` ou `python -m projectgit` (ver `packages/cli/README.md`).
+- `pyproject.toml` em `packages/cli` prepara entrypoint futuro `projectgit` (`pip install -e .`).
+- Saída legível no terminal (UTF-8 no stdio quando suportado); JSON estruturado pode ser adicionado depois para integração com Electron.
 
 ## Fase 4 — Criar app Electron + React
 
