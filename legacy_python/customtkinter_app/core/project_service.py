@@ -1,5 +1,5 @@
 """
-Projetos favoritos persistidos em data/projects.json.
+Projetos favoritos persistidos em data/projects.json (ao lado de core/ e ui/).
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 def _json_path() -> Path:
-    # data/projects.json ao lado do pacote: resolve a partir deste arquivo
+    # legacy_python/customtkinter_app/data/projects.json
     base = Path(__file__).resolve().parent.parent / "data" / "projects.json"
     base.parent.mkdir(parents=True, exist_ok=True)
     return base

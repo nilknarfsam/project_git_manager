@@ -110,6 +110,99 @@ def run_git_command(
     return proc.returncode or 0, full_out, full_err
 
 
+def get_current_branch(path: str) -> tuple[bool, str]:
+    """
+    Retorna (ok, nome_da_branch). Se ok for False, a string contém mensagem de erro ou stderr.
+    Em HEAD destacado, ok é False com aviso explícito (rev-parse retorna "HEAD").
+    """
+    rc, out, err = run_git_command(["rev-parse", "--abbrev-ref", "HEAD"], path)
+    if rc != 0:
+        detail = (err or out).strip() or f"código {rc}"
+        return False, detail
+    name = (out or "").strip()
+    if not name:
+        return False, "Branch vazia."
+    if name == "HEAD":
+        return (
+            False,
+            "HEAD destacado: não há branch nomeada. Faça checkout de uma branch "
+            "(ex.: git checkout main).",
+        )
+    return True, name
+
+
+def get_last_commit(path: str) -> tuple[bool, str]:
+    """Último commit em formato curto: hash - assunto (git log -1)."""
+    rc, out, err = run_git_command(
+        ["log", "-1", "--pretty=format:%h - %s"],
+        path,
+    )
+    if rc != 0:
+        detail = (err or out).strip() or f"código {rc}"
+        return False, detail
+    text = (out or "").strip()
+    return True, text if text else "-"
+
+
+def has_pending_changes(path: str) -> tuple[bool, bool]:
+    """
+    Retorna (ok, tem_alteracoes). tem_alteracoes só é confiável se ok for True.
+    """
+    rc, out, err = run_git_command(["status", "--porcelain"], path)
+    if rc != 0:
+        return False, False
+    return True, bool((out or "").strip())
+
+
+def get_repository_overview(path: str) -> dict[str, object]:
+    """
+    Resumo do repositório na pasta indicada (sem efeitos colaterais além de leitura Git).
+
+    Retorna dicionário com chaves: is_git_repo, branch, has_changes, last_commit, message.
+    """
+    not_git: dict[str, object] = {
+        "is_git_repo": False,
+        "branch": "-",
+        "has_changes": False,
+        "last_commit": "-",
+        "message": "A pasta selecionada não é um repositório Git.",
+    }
+
+    raw = (path or "").strip()
+    if not raw:
+        out = dict(not_git)
+        out["message"] = "Nenhuma pasta selecionada."
+        return out
+
+    ok_repo, _msg = validate_git_repo(raw)
+    if not ok_repo:
+        return dict(not_git)
+
+    ok_lc, last_txt = get_last_commit(raw)
+    last_commit = last_txt if ok_lc else "-"
+
+    ok_br, branch_or_err = get_current_branch(raw)
+    ok_st, dirty = has_pending_changes(raw)
+    has_ch = bool(dirty) if ok_st else False
+
+    if not ok_br:
+        return {
+            "is_git_repo": True,
+            "branch": "-",
+            "has_changes": has_ch,
+            "last_commit": last_commit,
+            "message": branch_or_err,
+        }
+
+    return {
+        "is_git_repo": True,
+        "branch": branch_or_err,
+        "has_changes": has_ch,
+        "last_commit": last_commit,
+        "message": "Repositório carregado com sucesso.",
+    }
+
+
 def force_sync_repo(
     path: str,
     on_line: Callable[[str, bool], None] | None = None,

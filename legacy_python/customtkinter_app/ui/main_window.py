@@ -27,25 +27,86 @@ class MainWindow(ctk.CTk):
         self._selected_path = ctk.StringVar(value="")
         self._project_names: list[str] = []
         self._busy = False
+        self._overview_loading = False
 
         self._build_layout()
         self._refresh_saved_projects()
         self._update_action_states()
+        self.refresh_repository_overview()
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_layout(self) -> None:
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(3, weight=1)
+        self.grid_rowconfigure(4, weight=1)
 
         title = ctk.CTkLabel(
             self, text="Gerenciador Git de Projetos", font=ctk.CTkFont(size=22, weight="bold")
         )
         title.grid(row=0, column=0, pady=(16, 8), padx=20)
 
+        # --- Resumo do repositório ---
+        overview_card = ctk.CTkFrame(self)
+        overview_card.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 6))
+        overview_card.grid_columnconfigure(1, weight=1)
+
+        title_row = ctk.CTkFrame(overview_card, fg_color="transparent")
+        title_row.grid(row=0, column=0, columnspan=2, sticky="ew", padx=8, pady=(10, 4))
+        title_row.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            title_row,
+            text="Resumo do repositório",
+            font=ctk.CTkFont(size=16, weight="bold"),
+        ).grid(row=0, column=0, sticky="w")
+        self._btn_refresh_overview = ctk.CTkButton(
+            title_row,
+            text="Atualizar resumo",
+            width=150,
+            command=self.refresh_repository_overview,
+        )
+        self._btn_refresh_overview.grid(row=0, column=1, padx=(8, 4), pady=0)
+
+        self._overview_hint = ctk.CTkLabel(
+            overview_card,
+            text="",
+            font=ctk.CTkFont(size=12),
+            text_color="#93c5fd",
+            anchor="w",
+        )
+        self._overview_hint.grid(row=1, column=0, columnspan=2, sticky="ew", padx=12, pady=(0, 6))
+
+        neutral = ("gray20", "#D1D5DB")
+        ctk.CTkLabel(overview_card, text="Projeto:", font=ctk.CTkFont(weight="bold")).grid(
+            row=2, column=0, padx=(12, 8), pady=2, sticky="nw"
+        )
+        self._ov_project_val = ctk.CTkLabel(overview_card, text="—", anchor="w", text_color=neutral)
+        self._ov_project_val.grid(row=2, column=1, padx=4, pady=2, sticky="ew")
+        ctk.CTkLabel(overview_card, text="Branch:", font=ctk.CTkFont(weight="bold")).grid(
+            row=3, column=0, padx=(12, 8), pady=2, sticky="w"
+        )
+        self._ov_branch_val = ctk.CTkLabel(overview_card, text="—", anchor="w", text_color=neutral)
+        self._ov_branch_val.grid(row=3, column=1, padx=4, pady=2, sticky="w")
+        ctk.CTkLabel(overview_card, text="Status:", font=ctk.CTkFont(weight="bold")).grid(
+            row=4, column=0, padx=(12, 8), pady=2, sticky="w"
+        )
+        self._ov_status_val = ctk.CTkLabel(overview_card, text="—", anchor="w", text_color="gray60")
+        self._ov_status_val.grid(row=4, column=1, padx=4, pady=2, sticky="w")
+        ctk.CTkLabel(overview_card, text="Último commit:", font=ctk.CTkFont(weight="bold")).grid(
+            row=5, column=0, padx=(12, 8), pady=(2, 10), sticky="nw"
+        )
+        self._ov_last_commit_val = ctk.CTkLabel(
+            overview_card,
+            text="—",
+            anchor="w",
+            justify="left",
+            wraplength=700,
+            text_color=neutral,
+        )
+        self._ov_last_commit_val.grid(row=5, column=1, padx=4, pady=(2, 10), sticky="ew")
+
         # --- Seleção de projeto ---
         proj_frame = ctk.CTkFrame(self)
-        proj_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=8)
+        proj_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=8)
         proj_frame.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(proj_frame, text="Projeto").grid(row=0, column=0, padx=8, pady=6, sticky="w")
@@ -71,7 +132,7 @@ class MainWindow(ctk.CTk):
 
         # --- Ações Git ---
         git_frame = ctk.CTkFrame(self)
-        git_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=8)
+        git_frame.grid(row=3, column=0, sticky="ew", padx=20, pady=8)
         git_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(git_frame, text="Ações Git", font=ctk.CTkFont(size=14, weight="bold")).grid(
@@ -91,7 +152,7 @@ class MainWindow(ctk.CTk):
 
         # --- Log ---
         log_frame = ctk.CTkFrame(self)
-        log_frame.grid(row=3, column=0, sticky="nsew", padx=20, pady=(8, 16))
+        log_frame.grid(row=4, column=0, sticky="nsew", padx=20, pady=(8, 16))
         log_frame.grid_columnconfigure(0, weight=1)
         log_frame.grid_rowconfigure(1, weight=1)
         ctk.CTkLabel(log_frame, text="Saída do log").grid(row=0, column=0, padx=8, pady=4, sticky="w")
@@ -130,6 +191,132 @@ class MainWindow(ctk.CTk):
         self._btn_vscode.configure(state=proj_state)
         self._btn_save_project.configure(state=proj_state)
         self._saved_combo.configure(state=proj_state)
+        if hasattr(self, "_btn_refresh_overview"):
+            self._btn_refresh_overview.configure(
+                state="disabled" if (busy or self._overview_loading) else "normal"
+            )
+
+    def _apply_repository_overview_ui(
+        self,
+        *,
+        folder_name: str,
+        branch: str,
+        last_commit: str,
+        status_text: str,
+        status_color: str,
+    ) -> None:
+        neutral = ("gray20", "#D1D5DB")
+        self._ov_project_val.configure(text=folder_name, text_color=neutral)
+        self._ov_branch_val.configure(text=branch, text_color=neutral)
+        self._ov_last_commit_val.configure(text=last_commit, text_color=neutral)
+        self._ov_status_val.configure(text=status_text, text_color=status_color)
+
+    def _finish_repository_overview(self, folder_name: str, data: dict) -> None:
+        self._overview_loading = False
+        self._overview_hint.configure(text="")
+        self._update_action_states()
+
+        is_git = bool(data.get("is_git_repo"))
+        branch = str(data.get("branch", "-"))
+        last_c = str(data.get("last_commit", "-"))
+        has_ch = bool(data.get("has_changes"))
+        message = str(data.get("message", ""))
+
+        if not is_git:
+            msg = message
+            if "Nenhuma pasta" in msg:
+                self._apply_repository_overview_ui(
+                    folder_name="—",
+                    branch="—",
+                    last_commit="—",
+                    status_text="—",
+                    status_color="gray60",
+                )
+            else:
+                self._apply_repository_overview_ui(
+                    folder_name=folder_name,
+                    branch="-",
+                    last_commit="-",
+                    status_text="❌ Não é repositório Git",
+                    status_color="#ff6b6b",
+                )
+        elif branch == "-" and message and message != "Repositório carregado com sucesso.":
+            short = message if len(message) <= 100 else message[:97] + "…"
+            self._apply_repository_overview_ui(
+                folder_name=folder_name,
+                branch="-",
+                last_commit=last_c,
+                status_text=f"⚠ {short}",
+                status_color="#fcc419",
+            )
+        elif has_ch:
+            self._apply_repository_overview_ui(
+                folder_name=folder_name,
+                branch=branch,
+                last_commit=last_c,
+                status_text="⚠ Alterações pendentes",
+                status_color="#fcc419",
+            )
+        else:
+            self._apply_repository_overview_ui(
+                folder_name=folder_name,
+                branch=branch,
+                last_commit=last_c,
+                status_text="✔ Limpo",
+                status_color="#69db7c",
+            )
+
+        self._log_repository_overview(data)
+
+    def _log_repository_overview(self, data: dict) -> None:
+        if bool(data.get("is_git_repo")):
+            self._log_line("Resumo do repositório atualizado.\n", success=True)
+            self._log_line(f"  Branch: {data.get('branch', '-')}\n")
+            st = "Alterações pendentes" if data.get("has_changes") else "Limpo"
+            self._log_line(f"  Status: {st}\n")
+            self._log_line(f"  Último commit: {data.get('last_commit', '-')}\n")
+        else:
+            msg = str(data.get("message", "Erro desconhecido."))
+            if "Nenhuma pasta" in msg:
+                self._log_line(f"{msg}\n")
+            else:
+                self._log_line(f"Resumo: {msg}\n", error=True)
+
+    def refresh_repository_overview(self) -> None:
+        """Atualiza o card de resumo em thread; desativa o botão durante a leitura."""
+        if self._overview_loading:
+            return
+        path_snapshot = self._selected_path.get().strip()
+        self._overview_loading = True
+        self._btn_refresh_overview.configure(state="disabled")
+        self._overview_hint.configure(text="Atualizando resumo do repositório...")
+        self._update_action_states()
+
+        def worker() -> None:
+            folder_name = Path(path_snapshot).name if path_snapshot else "—"
+            try:
+                data = git_service.get_repository_overview(path_snapshot)
+            except OSError as e:
+                data = {
+                    "is_git_repo": False,
+                    "branch": "-",
+                    "has_changes": False,
+                    "last_commit": "-",
+                    "message": f"Erro ao acessar a pasta: {e}",
+                }
+            except Exception as e:
+                data = {
+                    "is_git_repo": False,
+                    "branch": "-",
+                    "has_changes": False,
+                    "last_commit": "-",
+                    "message": f"Erro inesperado: {e}",
+                }
+            self._ui(
+                lambda f=folder_name, d=data: self._finish_repository_overview(f, d),
+            )
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _select_folder(self) -> None:
         folder = filedialog.askdirectory(title="Selecionar pasta do projeto")
@@ -137,6 +324,7 @@ class MainWindow(ctk.CTk):
             self._selected_path.set(str(Path(folder).resolve()))
             self._log_line(f"Pasta selecionada: {folder}\n")
             self._update_action_states()
+            self.refresh_repository_overview()
 
     def _open_vscode(self) -> None:
         ok, msg = git_service.folder_exists(self._selected_path.get())
@@ -197,6 +385,7 @@ class MainWindow(ctk.CTk):
                 self._selected_path.set(p["path"])
                 self._log_line(f"Projeto carregado: {choice} → {p['path']}\n")
                 self._update_action_states()
+                self.refresh_repository_overview()
                 break
 
     def _clone_dialog(self) -> None:
@@ -292,6 +481,8 @@ class MainWindow(ctk.CTk):
                     else:
                         self._log_line("\nFalha ao clonar repositório.\n", error=True)
                     self._log_line(f"Código de saída: {rc}\n", error=True)
+                if rc == 0:
+                    self._ui(self.refresh_repository_overview)
                 self._set_busy(False)
 
             threading.Thread(target=worker, daemon=True).start()
@@ -327,6 +518,8 @@ class MainWindow(ctk.CTk):
                 self._log_line("Commit realizado com sucesso.\n", success=True)
             else:
                 self._log_line("Add, commit ou push falhou (veja a saída acima).\n", error=True)
+            if rc == 0:
+                self._ui(self.refresh_repository_overview)
             self._set_busy(False)
 
         threading.Thread(target=worker, daemon=True).start()
@@ -371,6 +564,8 @@ class MainWindow(ctk.CTk):
                 self._log_line("Projeto atualizado.\n", success=True)
             else:
                 self._log_line("git pull falhou.\n", error=True)
+            if rc == 0:
+                self._ui(self.refresh_repository_overview)
             self._set_busy(False)
 
         threading.Thread(target=worker, daemon=True).start()

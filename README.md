@@ -1,25 +1,35 @@
 # Project Git Manager
 
-**Gerenciador Git de Projetos** — aplicação desktop em Python para trabalhar com repositórios Git por interface gráfica (clone, status, pull, commit/push, favoritos e integração com VS Code).
+**Gerenciador Git de Projetos** — aplicação desktop para trabalhar com repositórios Git por interface gráfica (clone, status, pull, commit/push, favoritos e integração com VS Code).
+
+Repositório: [github.com/nilknarfsam/project_git_manager](https://github.com/nilknarfsam/project_git_manager)
+
+## Versão atual (legado)
+
+A interface em uso hoje é **Python 3** + **CustomTkinter**. O código vive em `legacy_python/customtkinter_app/` e continua sendo a base funcional; nada foi removido, apenas reorganizado.
+
+## Nova direção (arquitetura híbrida)
+
+O projeto evolui para um *Dev Workflow Manager* com camadas separadas: **Electron** + **React** + **TypeScript** na UI desktop, **Node.js** no processo principal (IPC, processos, persistência), **Python** para automações e relatórios, **SQLite** para dados locais e **Git CLI** como dependência externa. Detalhes em [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), fases em [docs/ROADMAP.md](docs/ROADMAP.md) e decisões em [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Objetivo
 
 Simplificar tarefas do dia a dia com Git em qualquer pasta do computador: escolher o projeto, ver o status, atualizar do remoto, publicar alterações e manter uma lista de projetos favoritos, sem depender só da linha de comando.
 
-## Stack
+## Stack (legado CustomTkinter)
 
 | Camada | Tecnologia |
 |--------|------------|
 | Linguagem | Python 3 |
 | Interface | [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) |
 | Git | `subprocess` (sem `shell=True`), compatível com Windows (`CREATE_NO_WINDOW` onde aplicável) |
-| Persistência | JSON (`data/projects.json`) |
+| Persistência | JSON (`legacy_python/customtkinter_app/data/projects.json`) |
 
-## Funcionalidades atuais
+## Funcionalidades atuais (legado)
 
 - Seleção de pasta do projeto e campo de caminho editável
 - Abrir pasta no **VS Code** (`code` no PATH)
-- Salvar e carregar **projetos favoritos** (`data/projects.json`)
+- Salvar e carregar **projetos favoritos** (`data/projects.json` dentro do app legado)
 - **Clonar** repositório (URL + caminho completo da pasta final)
 - Se a pasta de destino **já existir** e for um repositório Git, **sincronização forçada** com o remoto (ver aviso abaixo)
 - **Git status**, **pull**, **commit + push** (com mensagem), com validação de `.git`
@@ -36,24 +46,17 @@ Quando a pasta de destino do clone **já existe** e contém um repositório Git 
 
 Isso **descarta commits e alterações locais não enviadas** na branch atual e **remove arquivos não rastreados** (exceto ignorados pelo padrão do `git clean -fd`). Use apenas se tiver certeza de que pode perder trabalho local nessa pasta.
 
-## Instalação
+## Como executar a versão atual (Python + CustomTkinter)
 
 ```bash
-cd project_git_manager
+cd legacy_python/customtkinter_app
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
+python main.py
 ```
 
 No Linux/macOS, ative o ambiente virtual com `source venv/bin/activate`.
-
-## Execução
-
-Na raiz do repositório (pasta que contém `main.py` e `data/`):
-
-```bash
-python main.py
-```
 
 Requisitos no sistema: **Git** no PATH; para “Abrir no VS Code”, o comando `code` no PATH.
 
@@ -61,31 +64,30 @@ Requisitos no sistema: **Git** no PATH; para “Abrir no VS Code”, o comando `
 
 ```
 project_git_manager/
-  main.py
-  ui/
-    main_window.py
-    components.py
-  core/
-    git_service.py
-    project_service.py
-  data/
-    projects.json
-  requirements.txt
   README.md
+  docs/
+    ARCHITECTURE.md
+    ROADMAP.md
+    DECISIONS.md
+  legacy_python/
+    customtkinter_app/
+      main.py
+      requirements.txt
+      ui/
+      core/
+      data/
+  apps/
+    desktop/          # reservado — Electron + React (futuro)
+  packages/
+    core/             # reservado — contratos / código compartilhado (futuro)
+    python_worker/    # reservado — worker Python (futuro)
+  data/               # reservado — persistência da nova stack (futuro)
 ```
 
-## APIs principais (`core/`)
+## APIs principais (`legacy_python/customtkinter_app/core/`)
 
 - **git_service**: `run_git_command`, `validate_git_repo`, `clone_repo`, `force_sync_repo`, `pull_repo`, `commit_and_push`, `get_status`, etc.
 - **project_service**: `load_projects`, `save_project`, `get_projects`
-
-## Roadmap (sugestões)
-
-- Seleção granular de arquivos para commit (sem só `git add .`)
-- Configuração de remoto/branch e checagem de URL ao sincronizar
-- Testes automatizados (pytest) e empacotamento (PyInstaller / wheel)
-- Internacionalização (i18n) ou tema claro
-- Atalhos de teclado e histórico de comandos no log
 
 ## Autor
 

@@ -1,6 +1,11 @@
 """
-Gerenciador Git de Projetos — ponto de entrada.
-Execute nesta pasta: python main.py
+Gerenciador Git de Projetos — ponto de entrada (legado CustomTkinter).
+
+Execute a partir desta pasta:
+  pip install -r requirements.txt
+  python main.py
+
+Na raiz do repositório: cd legacy_python/customtkinter_app
 """
 
 import sys
