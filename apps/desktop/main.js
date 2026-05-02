@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs/promises");
 const { spawn } = require("child_process");
@@ -52,6 +52,115 @@ function validateArgs(args) {
   }
   return null;
 }
+
+/** Rejeita caracteres de controle e caminhos absurdamente longos (spawn seguro). */
+function assertPlainPathString(s) {
+  if (typeof s !== "string") {
+    return { ok: false, error: "Caminho inválido." };
+  }
+  const t = s.trim();
+  if (!t) {
+    return { ok: false, error: "Caminho vazio." };
+  }
+  if (t.length > 4096) {
+    return { ok: false, error: "Caminho muito longo." };
+  }
+  if (/[\0\r\n\x0b]/.test(t)) {
+    return { ok: false, error: "Caracteres inválidos no caminho." };
+  }
+  return { ok: true, trimmed: t };
+}
+
+/**
+ * Resolve e verifica se existe como diretório (antes de abrir no editor).
+ * @param {unknown} rawPath
+ * @returns {Promise<{ ok: true; path: string } | { ok: false; error: string }>}
+ */
+async function validateDirectoryForOpen(rawPath) {
+  const base = assertPlainPathString(rawPath);
+  if (!base.ok) {
+    return base;
+  }
+  let resolved;
+  try {
+    resolved = path.resolve(base.trimmed);
+  } catch {
+    return { ok: false, error: "Não foi possível resolver o caminho." };
+  }
+  try {
+    const st = await fs.stat(resolved);
+    if (!st.isDirectory()) {
+      return { ok: false, error: "O caminho não é uma pasta." };
+    }
+  } catch (e) {
+    const code = /** @type {NodeJS.ErrnoException} */ (e).code;
+    if (code === "ENOENT") {
+      return { ok: false, error: "Pasta não encontrada." };
+    }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+  return { ok: true, path: resolved };
+}
+
+/**
+ * @param {string} bin ex.: "code" ou "code.cmd"
+ * @param {string} folderPath caminho já validado
+ * @returns {Promise<{ ok: true } | { ok: false; error: string }>}
+ */
+function spawnEditorDetached(bin, folderPath) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const child = spawn(bin, [folderPath], {
+      shell: false,
+      windowsHide: true,
+      detached: true,
+      stdio: "ignore",
+    });
+    child.once("error", (err) => {
+      if (settled) return;
+      settled = true;
+      resolve({
+        ok: false,
+        error: `Não foi possível iniciar o editor (${bin}). Verifique se está no PATH. ${err.message}`,
+      });
+    });
+    child.once("spawn", () => {
+      if (settled) return;
+      settled = true;
+      child.unref();
+      resolve({ ok: true });
+    });
+  });
+}
+
+/** Ordem: preferir .cmd no Windows (shell off), depois o binário base. */
+function editorBinaryCandidates(base) {
+  if (process.platform === "win32") {
+    return [`${base}.cmd`, base];
+  }
+  return [base];
+}
+
+/**
+ * @param {string[]} bins
+ * @param {string} folderPath
+ */
+async function spawnFirstAvailableEditor(bins, folderPath) {
+  let lastError = "Não foi possível iniciar o editor.";
+  for (const bin of bins) {
+    const r = await spawnEditorDetached(bin, folderPath);
+    if (r.ok) {
+      return r;
+    }
+    lastError = r.error;
+  }
+  return { ok: false, error: lastError };
+}
+
+let mainWindow = null;
 
 /**
  * @param {string} command
@@ -145,6 +254,33 @@ ipcMain.handle("get-projects", async () => {
   }
 });
 
+ipcMain.handle("select-folder", async () => {
+  const win = BrowserWindow.getFocusedWindow() ?? mainWindow;
+  const result = await dialog.showOpenDialog(win ?? undefined, {
+    properties: ["openDirectory", "createDirectory"],
+  });
+  if (result.canceled || !result.filePaths?.length) {
+    return { ok: false, canceled: true };
+  }
+  return { ok: true, path: result.filePaths[0] };
+});
+
+ipcMain.handle("open-vscode", async (_event, targetPath) => {
+  const v = await validateDirectoryForOpen(targetPath);
+  if (!v.ok) {
+    return v;
+  }
+  return spawnFirstAvailableEditor(editorBinaryCandidates("code"), v.path);
+});
+
+ipcMain.handle("open-cursor", async (_event, targetPath) => {
+  const v = await validateDirectoryForOpen(targetPath);
+  if (!v.ok) {
+    return v;
+  }
+  return spawnFirstAvailableEditor(editorBinaryCandidates("cursor"), v.path);
+});
+
 ipcMain.handle("save-project", async (_event, payload) => {
   const name =
     typeof payload?.name === "string" ? payload.name.trim() : "";
@@ -214,8 +350,6 @@ ipcMain.handle("save-project", async (_event, payload) => {
     };
   }
 });
-
-let mainWindow = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({

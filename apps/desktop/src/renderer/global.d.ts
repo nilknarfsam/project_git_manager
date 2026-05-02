@@ -16,6 +16,12 @@ export type SaveProjectResult = {
   error?: string;
 };
 
+export type SelectFolderResult =
+  | { ok: true; path: string }
+  | { ok: false; canceled?: boolean; error?: string };
+
+export type OpenEditorResult = { ok: true } | { ok: false; error: string };
+
 declare global {
   interface Window {
     api: {
@@ -25,6 +31,9 @@ declare global {
         name: string;
         path: string;
       }): Promise<SaveProjectResult>;
+      selectFolder(): Promise<SelectFolderResult>;
+      openVscode(targetPath: string): Promise<OpenEditorResult>;
+      openCursor(targetPath: string): Promise<OpenEditorResult>;
     };
   }
 }

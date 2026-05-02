@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { ActionButtons } from "./components/ActionButtons";
+import { CloneModal } from "./components/CloneModal";
 import { Header } from "./components/Header";
 import { LogsPanel, type LogEntry, type LogLevel } from "./components/LogsPanel";
+import { ProductivityActions } from "./components/ProductivityActions";
 import { ProjectSelector } from "./components/ProjectSelector";
 import { RepositoryInfo } from "./components/RepositoryInfo";
 import type { SavedProject } from "./types/savedProject";
+import { pathBasename } from "./utils/cloneValidation";
 import {
   parseOverviewStdout,
   type RepositoryOverviewParsed,
@@ -34,6 +37,8 @@ export default function App() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [entries, setEntries] = useState<LogEntry[]>([]);
+  const [cloneModalOpen, setCloneModalOpen] = useState(false);
+  const [cloneRunning, setCloneRunning] = useState(false);
 
   const appendLog = useCallback((level: LogLevel, text: string) => {
     setEntries((prev) => [...prev, { id: nextId(), level, text }]);
@@ -169,6 +174,80 @@ export default function App() {
     [appendLog, applyOverviewFromStdout, path, refreshDashboard],
   );
 
+  const handleSelectFolder = useCallback(async () => {
+    try {
+      const r = await window.api.selectFolder();
+      if (r.ok && r.path) {
+        setPath(r.path);
+        return;
+      }
+      if ("canceled" in r && r.canceled) return;
+      appendLog("error", "error" in r && r.error ? r.error : "Falha ao selecionar pasta.");
+    } catch (e) {
+      appendLog("error", e instanceof Error ? e.message : String(e));
+    }
+  }, [appendLog]);
+
+  const handleOpenVscode = useCallback(async () => {
+    const trimmed = path.trim();
+    if (!trimmed) {
+      appendLog("warning", "Informe o caminho do projeto.");
+      return;
+    }
+    try {
+      const r = await window.api.openVscode(trimmed);
+      if (r.ok) {
+        appendLog("success", "VS Code iniciado.");
+      } else {
+        appendLog("error", r.error);
+      }
+    } catch (e) {
+      appendLog("error", e instanceof Error ? e.message : String(e));
+    }
+  }, [appendLog, path]);
+
+  const handleOpenCursor = useCallback(async () => {
+    const trimmed = path.trim();
+    if (!trimmed) {
+      appendLog("warning", "Informe o caminho do projeto.");
+      return;
+    }
+    try {
+      const r = await window.api.openCursor(trimmed);
+      if (r.ok) {
+        appendLog("success", "Cursor iniciado.");
+      } else {
+        appendLog("error", r.error);
+      }
+    } catch (e) {
+      appendLog("error", e instanceof Error ? e.message : String(e));
+    }
+  }, [appendLog, path]);
+
+  const handleAfterClone = useCallback(
+    async (destinationPath: string) => {
+      const trimmed = destinationPath.trim();
+      setPath(trimmed);
+      const name = pathBasename(trimmed);
+      const r = await window.api.saveProject({ name, path: trimmed });
+      if (r.ok) {
+        appendLog("success", `Favorito salvo automaticamente: ${name}`);
+        await loadProjects();
+      } else {
+        appendLog("error", r.error ?? "Clone OK, mas falha ao salvar favorito.");
+        await loadProjects();
+      }
+    },
+    [appendLog, loadProjects],
+  );
+
+  const appendLogTyped = useCallback(
+    (level: LogLevel, text: string) => {
+      appendLog(level, text);
+    },
+    [appendLog],
+  );
+
   const onSaveFavorite = useCallback(async () => {
     const trimmedPath = path.trim();
     const name = saveName.trim();
@@ -198,7 +277,7 @@ export default function App() {
     }
   }, [appendLog, loadProjects, path, saveName]);
 
-  const uiBusy = busy || overviewLoading;
+  const uiBusy = busy || overviewLoading || cloneRunning;
 
   return (
     <div className={`app-shell${uiBusy ? " app-shell--busy" : ""}`}>
@@ -211,9 +290,17 @@ export default function App() {
         onSaveNameChange={setSaveName}
         onSaveFavorite={() => void onSaveFavorite()}
         onReloadProjects={() => void loadProjects()}
+        onSelectFolder={() => void handleSelectFolder()}
         disabled={uiBusy}
       />
       <RepositoryInfo overview={overview} loading={overviewLoading} />
+      <ProductivityActions
+        busy={uiBusy}
+        path={path}
+        onOpenVscode={() => void handleOpenVscode()}
+        onOpenCursor={() => void handleOpenCursor()}
+        onOpenCloneModal={() => setCloneModalOpen(true)}
+      />
       <ActionButtons
         busy={uiBusy}
         onStatus={() => void runGitSubcommand("status")}
@@ -222,6 +309,14 @@ export default function App() {
         onAtualizar={() => void refreshDashboard({ withLogs: false })}
       />
       <LogsPanel entries={entries} onClear={clearLogs} />
+      <CloneModal
+        open={cloneModalOpen}
+        onClose={() => setCloneModalOpen(false)}
+        disabled={busy || overviewLoading}
+        onAfterClone={handleAfterClone}
+        onLog={appendLogTyped}
+        onCloneBusy={setCloneRunning}
+      />
     </div>
   );
 }

@@ -29,4 +29,30 @@ contextBridge.exposeInMainWorld("api", {
   saveProject(entry) {
     return ipcRenderer.invoke("save-project", entry);
   },
+
+  /**
+   * Abre diálogo nativo para escolher uma pasta.
+   * @returns {Promise<{ ok: true; path: string } | { ok: false; canceled?: boolean; error?: string }>}
+   */
+  selectFolder() {
+    return ipcRenderer.invoke("select-folder");
+  },
+
+  /**
+   * Abre a pasta no VS Code (spawn sem shell).
+   * @param {string} targetPath
+   * @returns {Promise<{ ok: true } | { ok: false; error: string }>}
+   */
+  openVscode(targetPath) {
+    return ipcRenderer.invoke("open-vscode", targetPath);
+  },
+
+  /**
+   * Abre a pasta no Cursor (spawn sem shell).
+   * @param {string} targetPath
+   * @returns {Promise<{ ok: true } | { ok: false; error: string }>}
+   */
+  openCursor(targetPath) {
+    return ipcRenderer.invoke("open-cursor", targetPath);
+  },
 });

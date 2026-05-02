@@ -8,6 +8,7 @@ type ProjectSelectorProps = {
   onSaveNameChange: (value: string) => void;
   onSaveFavorite: () => void;
   onReloadProjects: () => void;
+  onSelectFolder: () => void;
   disabled: boolean;
 };
 
@@ -19,6 +20,7 @@ export function ProjectSelector({
   onSaveNameChange,
   onSaveFavorite,
   onReloadProjects,
+  onSelectFolder,
   disabled,
 }: ProjectSelectorProps) {
   const selectValue =
@@ -30,17 +32,27 @@ export function ProjectSelector({
         <label className="field-label" htmlFor="repo-path">
           Caminho do projeto
         </label>
-        <input
-          id="repo-path"
-          className="field-input"
-          type="text"
-          placeholder="Ex.: C:\src\projects\auratime"
-          value={path}
-          onChange={(e) => onPathChange(e.target.value)}
-          disabled={disabled}
-          autoComplete="off"
-          spellCheck={false}
-        />
+        <div className="path-input-row">
+          <input
+            id="repo-path"
+            className="field-input path-input-row__input"
+            type="text"
+            placeholder="Ex.: C:\src\projects\auratime"
+            value={path}
+            onChange={(e) => onPathChange(e.target.value)}
+            disabled={disabled}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm path-input-row__btn"
+            disabled={disabled}
+            onClick={onSelectFolder}
+          >
+            Selecionar pasta
+          </button>
+        </div>
 
         <div className="field-row field-row--split">
           <div className="field-grow">

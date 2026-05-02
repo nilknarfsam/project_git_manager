@@ -454,4 +454,82 @@ body {
   margin-top: 0;
 }
 
+.field-label--gap {
+  margin-top: 14px;
+}
+
+.path-input-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.path-input-row__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.path-input-row__btn {
+  flex-shrink: 0;
+  align-self: stretch;
+  white-space: nowrap;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.modal-dialog {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+.modal-dialog-inner {
+  padding-bottom: 20px;
+}
+
+.modal-hint {
+  margin: 0 0 16px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.clone-status {
+  margin: 14px 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.clone-status--muted {
+  color: var(--muted);
+}
+
+.clone-status--ok {
+  color: var(--ok);
+}
+
+.clone-status--err {
+  color: var(--danger);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
 
