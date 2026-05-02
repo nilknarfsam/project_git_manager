@@ -8,10 +8,12 @@ Plano evolutivo em fases. A ordem preserva um produto utilizável em cada etapa.
 - Aplicação CustomTkinter em `legacy_python/customtkinter_app/`, executável pelos mesmos fluxos (com `cd` na pasta legada).
 - Documentação de arquitetura e decisões na pasta `docs/`.
 
-## Fase 2 — Extrair core Git
+## Fase 2 — Extrair core Git (**concluída**)
 
-- Isolar a lógica Git em um módulo ou pacote Python claramente delimitado (importável sem UI).
-- Reduzir acoplamento entre `ui/` e operações Git; facilitar testes unitários e futura duplicação/consumo por CLI ou host Node.
+- Pacote `packages/core/project_git_core/` com `git/service.py`, `git/models.py`, `utils/process.py` (`run_process` sem `shell=True`).
+- `legacy_python/customtkinter_app/core/git_service.py` permanece como **adaptador** para a UI CustomTkinter (mesmas assinaturas e tuplas de retorno).
+- `main.py` do legado adiciona `packages/core` ao `sys.path` para importar o núcleo a partir da raiz do monorepo.
+- Testes mínimos em `tests/test_core_imports.py`.
 
 ## Fase 3 — Criar CLI Python
 

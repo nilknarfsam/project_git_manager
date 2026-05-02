@@ -46,9 +46,15 @@ Renderer (React)  →  preload (API mínima)  →  Main (Node)
 
 - `legacy_python/customtkinter_app/` — aplicação atual (referência e base funcional).
 - `apps/desktop/` — futura aplicação Electron + React.
-- `packages/core/` — futuros tipos/contratos compartilhados (ex.: schemas, constantes de protocolo).
+- `packages/core/project_git_core/` — **núcleo Git reutilizável** (Python): subprocess seguro, modelos (`GitCommandResult`, `RepositoryOverview`) e serviço Git sem dependência de UI. Pode ser consumido por CLI, worker ou host Node (via subprocesso Python).
+- `legacy_python/customtkinter_app/core/git_service.py` — **adaptador de compatibilidade**: expõe as mesmas funções e tuplas que a UI CustomTkinter já usava, delegando para `project_git_core`. A UI não deve usar `subprocess` diretamente para Git.
 - `packages/python_worker/` — futuro pacote ou entrypoint do worker Python.
 - `data/` na raiz — reservado para dados da nova stack (ex.: SQLite) em fases futuras; não confundir com `legacy_python/customtkinter_app/data/` (JSON da UI legada).
+
+### Direção para novas UIs
+
+- Preferir importar e chamar **`project_git_core`** (ou um backend que o encapsule) em vez de duplicar chamadas a `git`.
+- O processo Electron/Node futuro pode orquestrar o mesmo núcleo via subprocesso Python ou reimplementar apenas a orquestração, mantendo contratos alinhados aos tipos do core.
 
 ## Referências
 
