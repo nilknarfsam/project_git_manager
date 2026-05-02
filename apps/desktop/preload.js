@@ -12,4 +12,21 @@ contextBridge.exposeInMainWorld("api", {
   runCommand(command, args) {
     return ipcRenderer.invoke("run-command", command, args);
   },
+
+  /**
+   * Lista projetos favoritos (mesmo JSON do app Python).
+   * @returns {Promise<{ ok: boolean; projects?: { name: string; path: string }[]; error?: string }>}
+   */
+  getProjects() {
+    return ipcRenderer.invoke("get-projects");
+  },
+
+  /**
+   * Salva ou atualiza um favorito.
+   * @param {{ name: string; path: string }} entry
+   * @returns {Promise<{ ok: boolean; error?: string }>}
+   */
+  saveProject(entry) {
+    return ipcRenderer.invoke("save-project", entry);
+  },
 });

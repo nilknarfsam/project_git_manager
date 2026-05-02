@@ -95,7 +95,7 @@ Detalhes: [packages/cli/README.md](packages/cli/README.md).
 
 ## Desktop Electron (React + TypeScript)
 
-Shell em `apps/desktop/` com UI em **React 18** + **TypeScript** (**Vite**). O processo principal chama a CLI **`projectgit`** via `child_process.spawn` (sem `shell: true`). É preciso ter `projectgit` no `PATH` (por exemplo após `pip install -e packages/cli`) ou definir `PROJECTGIT_BIN` com o caminho absoluto do executável.
+Shell em `apps/desktop/` com UI em **React 18** + **TypeScript** (**Vite**). O processo principal chama a CLI **`projectgit`** via `child_process.spawn` (sem `shell: true`) e lê/grava favoritos no mesmo `projects.json` do app legado (`legacy_python/customtkinter_app/data/projects.json`). Variáveis opcionais: `PROJECTGIT_BIN`, `PROJECTGIT_PROJECTS_JSON`. É preciso ter `projectgit` no `PATH` (por exemplo após `pip install -e packages/cli`) ou definir `PROJECTGIT_BIN`.
 
 ```bash
 cd apps/desktop
