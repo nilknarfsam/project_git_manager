@@ -28,10 +28,11 @@ Plano evolutivo em fases. A ordem preserva um produto utilizável em cada etapa.
 - Instalação dev na raiz: `pip install -e packages/core` e `pip install -e packages/cli` (core primeiro).
 - CLI: prioriza import instalado (`find_spec`); mantém fallback de `sys.path` para clone do repo sem `pip`.
 
-## Fase 5 — Criar app Electron + React
+## Fase 5 — App Electron + React (**em andamento**)
 
-- *Scaffold* Electron com `contextIsolation`, preload mínimo e renderer React + TypeScript.
-- Telas iniciais: lista de projetos e feedback de operações; persistência local alinhada ao roadmap de SQLite.
+- **Concluído:** `apps/desktop/` com Electron, `preload` + `contextBridge`, IPC `run-command` (`spawn` sem shell), renderer **React + TypeScript** via **Vite** (`Header`, `CommandPanel`, `OutputPanel`), tema escuro e logs com níveis de cor.
+- **Scripts:** `npm run build` + `npm start` (produção local); `npm run dev` (Vite + Electron com hot reload).
+- **Próximo:** persistência SQLite, mais comandos na UI, empacotamento instalável.
 
 ## Fase 6 — Integrar Node com Python worker
 

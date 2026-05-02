@@ -45,7 +45,7 @@ Renderer (React)  →  preload (API mínima)  →  Main (Node)
 ## Pacotes no repositório
 
 - `legacy_python/customtkinter_app/` — aplicação atual (referência e base funcional).
-- `apps/desktop/` — futura aplicação Electron + React.
+- `apps/desktop/` — shell Electron: janela + IPC que invoca a CLI `projectgit` (`spawn` sem shell); renderer **React + TypeScript** empacotado com **Vite** (`dist/` carregado em produção; dev server em desenvolvimento).
 - `packages/core/project_git_core/` — **núcleo Git reutilizável** (Python): subprocess seguro, modelos (`GitCommandResult`, `RepositoryOverview`) e serviço Git sem dependência de UI. Instalável como `pip install -e packages/core` (distribuição `project-git-core`).
 - `packages/cli/projectgit/` — **CLI** (`projectgit`): subcomandos `argparse` que chamam apenas o core; instalável como `pip install -e packages/cli` (comando `projectgit`). Fallback de `sys.path` se o core não estiver instalado.
 - `legacy_python/customtkinter_app/core/git_service.py` — **adaptador de compatibilidade**: expõe as mesmas funções e tuplas que a UI CustomTkinter já usava, delegando para `project_git_core`. A UI não deve usar `subprocess` diretamente para Git.

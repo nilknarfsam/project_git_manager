@@ -93,6 +93,25 @@ python -m projectgit.main overview "C:\src\meu-repo"
 
 Detalhes: [packages/cli/README.md](packages/cli/README.md).
 
+## Desktop Electron (React + TypeScript)
+
+Shell em `apps/desktop/` com UI em **React 18** + **TypeScript** (**Vite**). O processo principal chama a CLI **`projectgit`** via `child_process.spawn` (sem `shell: true`). É preciso ter `projectgit` no `PATH` (por exemplo após `pip install -e packages/cli`) ou definir `PROJECTGIT_BIN` com o caminho absoluto do executável.
+
+```bash
+cd apps/desktop
+npm install
+npm run build
+npm start
+```
+
+Desenvolvimento (Vite em `http://127.0.0.1:5173` + Electron):
+
+```bash
+cd apps/desktop
+npm install
+npm run dev
+```
+
 ## Estrutura do repositório
 
 ```
@@ -110,7 +129,7 @@ project_git_manager/
       core/
       data/
   apps/
-    desktop/          # reservado — Electron + React (futuro)
+    desktop/          # Electron — shell que invoca CLI projectgit
   packages/
     cli/              # CLI Python projectgit
     core/             # project_git_core — operações Git reutilizáveis
