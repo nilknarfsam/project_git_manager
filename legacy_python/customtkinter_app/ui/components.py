@@ -19,17 +19,21 @@ class LogConsole(ctk.CTkFrame):
         self._text.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         # Tag de erro no widget subjacente (CustomTkinter envolve tk.Text)
         tb = self._text._textbox  # noqa: SLF001 — padrão comum com CTkTextbox
-        tb.tag_configure("error", foreground="#ff6b6b")
-        tb.tag_configure("ok", foreground="#69db7c")
+        _mono = ("Consolas", 12)
+        _mono_bold = ("Consolas", 12, "bold")
+        tb.tag_configure("error", foreground="#ffa8a8", font=_mono_bold, spacing1=1)
+        tb.tag_configure("ok", foreground="#8fff9f", font=_mono_bold, spacing1=1)
+        tb.tag_configure("normal", font=_mono)
 
     def append(self, text: str, *, error: bool = False, success: bool = False) -> None:
         tb = self._text._textbox  # noqa: SLF001
         self._text.configure(state="normal")
-        tag = "error" if error else ("ok" if success else None)
-        if tag:
-            tb.insert("end", text, tag)
+        if error:
+            tb.insert("end", text, "error")
+        elif success:
+            tb.insert("end", text, "ok")
         else:
-            tb.insert("end", text)
+            tb.insert("end", text, "normal")
         self._text.configure(state="disabled")
         tb.see("end")
 

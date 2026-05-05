@@ -20,7 +20,7 @@ class MainWindow(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Gerenciador Git de Projetos")
-        self.geometry("920x700")
+        self.geometry("920x740")
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("dark-blue")
 
@@ -30,8 +30,11 @@ class MainWindow(ctk.CTk):
         self._overview_loading = False
 
         self._build_layout()
+        self._selected_path.trace_add("write", lambda *_: self._ui(self._update_current_project_display))
         self._refresh_saved_projects()
         self._update_action_states()
+        self._update_current_project_display()
+        self._update_status_bar()
         self.refresh_repository_overview()
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -43,11 +46,11 @@ class MainWindow(ctk.CTk):
         title = ctk.CTkLabel(
             self, text="Gerenciador Git de Projetos", font=ctk.CTkFont(size=22, weight="bold")
         )
-        title.grid(row=0, column=0, pady=(16, 8), padx=20)
+        title.grid(row=0, column=0, pady=(18, 10), padx=20)
 
         # --- Resumo do repositório ---
-        overview_card = ctk.CTkFrame(self)
-        overview_card.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 6))
+        overview_card = ctk.CTkFrame(self, corner_radius=10, border_width=1, border_color=("gray70", "gray30"))
+        overview_card.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 10))
         overview_card.grid_columnconfigure(1, weight=1)
 
         title_row = ctk.CTkFrame(overview_card, fg_color="transparent")
@@ -105,20 +108,45 @@ class MainWindow(ctk.CTk):
         self._ov_last_commit_val.grid(row=5, column=1, padx=4, pady=(2, 10), sticky="ew")
 
         # --- Seleção de projeto ---
-        proj_frame = ctk.CTkFrame(self)
-        proj_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=8)
+        proj_frame = ctk.CTkFrame(self, corner_radius=10, border_width=1, border_color=("gray70", "gray30"))
+        proj_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 10))
         proj_frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(proj_frame, text="Projeto").grid(row=0, column=0, padx=8, pady=6, sticky="w")
+        ctk.CTkLabel(
+            proj_frame,
+            text="Projeto e pastas",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).grid(row=0, column=0, columnspan=2, padx=10, pady=(10, 6), sticky="w")
+
+        banner = ctk.CTkFrame(proj_frame, fg_color=("gray88", "gray22"), corner_radius=8)
+        banner.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+        banner.grid_columnconfigure(0, weight=1)
+        self._lbl_current_project = ctk.CTkLabel(
+            banner,
+            text="Projeto atual: —",
+            font=ctk.CTkFont(size=15, weight="bold"),
+            anchor="w",
+        )
+        self._lbl_current_project.grid(row=0, column=0, padx=12, pady=(8, 0), sticky="ew")
+        self._lbl_current_project_sub = ctk.CTkLabel(
+            banner,
+            text="Selecione uma pasta ou um projeto salvo.",
+            font=ctk.CTkFont(size=12),
+            text_color="gray60",
+            anchor="w",
+        )
+        self._lbl_current_project_sub.grid(row=1, column=0, padx=12, pady=(2, 10), sticky="ew")
+
+        ctk.CTkLabel(proj_frame, text="Caminho da pasta").grid(row=2, column=0, padx=10, pady=6, sticky="w")
         self._path_entry = ctk.CTkEntry(
             proj_frame,
             textvariable=self._selected_path,
             placeholder_text="Caminho da pasta do projeto",
         )
-        self._path_entry.grid(row=0, column=1, padx=4, pady=6, sticky="ew")
+        self._path_entry.grid(row=2, column=1, padx=4, pady=6, sticky="ew")
 
         btn_row = ctk.CTkFrame(proj_frame, fg_color="transparent")
-        btn_row.grid(row=1, column=0, columnspan=2, sticky="ew", padx=4, pady=4)
+        btn_row.grid(row=3, column=0, columnspan=2, sticky="ew", padx=6, pady=(4, 8))
         self._btn_select_folder = ctk.CTkButton(btn_row, text="Escolher pasta", command=self._select_folder)
         self._btn_select_folder.pack(side="left", padx=4)
         self._btn_vscode = ctk.CTkButton(btn_row, text="Abrir no VS Code", command=self._open_vscode)
@@ -126,21 +154,21 @@ class MainWindow(ctk.CTk):
         self._btn_save_project = ctk.CTkButton(btn_row, text="Salvar projeto", command=self._save_project_dialog)
         self._btn_save_project.pack(side="left", padx=4)
 
-        ctk.CTkLabel(proj_frame, text="Projetos salvos").grid(row=2, column=0, padx=8, pady=(12, 4), sticky="w")
+        ctk.CTkLabel(proj_frame, text="Projetos salvos").grid(row=4, column=0, padx=10, pady=(4, 4), sticky="w")
         self._saved_combo = ctk.CTkComboBox(proj_frame, values=[], command=self._on_saved_selected, width=400)
-        self._saved_combo.grid(row=2, column=1, padx=4, pady=(12, 4), sticky="ew")
+        self._saved_combo.grid(row=4, column=1, padx=4, pady=(4, 10), sticky="ew")
 
         # --- Ações Git ---
-        git_frame = ctk.CTkFrame(self)
-        git_frame.grid(row=3, column=0, sticky="ew", padx=20, pady=8)
+        git_frame = ctk.CTkFrame(self, corner_radius=10, border_width=1, border_color=("gray70", "gray30"))
+        git_frame.grid(row=3, column=0, sticky="ew", padx=20, pady=(0, 10))
         git_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(git_frame, text="Ações Git", font=ctk.CTkFont(size=14, weight="bold")).grid(
-            row=0, column=0, columnspan=4, padx=8, pady=6, sticky="w"
+            row=0, column=0, columnspan=4, padx=10, pady=(10, 6), sticky="w"
         )
 
         row1 = ctk.CTkFrame(git_frame, fg_color="transparent")
-        row1.grid(row=1, column=0, columnspan=4, sticky="ew", padx=4, pady=4)
+        row1.grid(row=1, column=0, columnspan=4, sticky="ew", padx=8, pady=(4, 10))
         self._btn_clone = ctk.CTkButton(row1, text="Clonar repositório", command=self._clone_dialog)
         self._btn_clone.pack(side="left", padx=4)
         self._btn_status = ctk.CTkButton(row1, text="Git status", command=self._git_status)
@@ -151,13 +179,30 @@ class MainWindow(ctk.CTk):
         self._btn_commit.pack(side="left", padx=4)
 
         # --- Log ---
-        log_frame = ctk.CTkFrame(self)
-        log_frame.grid(row=4, column=0, sticky="nsew", padx=20, pady=(8, 16))
+        log_frame = ctk.CTkFrame(self, corner_radius=10, border_width=1, border_color=("gray70", "gray30"))
+        log_frame.grid(row=4, column=0, sticky="nsew", padx=20, pady=(0, 8))
         log_frame.grid_columnconfigure(0, weight=1)
         log_frame.grid_rowconfigure(1, weight=1)
-        ctk.CTkLabel(log_frame, text="Saída do log").grid(row=0, column=0, padx=8, pady=4, sticky="w")
+        ctk.CTkLabel(log_frame, text="Saída do log", font=ctk.CTkFont(size=14, weight="bold")).grid(
+            row=0, column=0, padx=10, pady=(10, 6), sticky="w"
+        )
         self._log = LogConsole(log_frame)
-        self._log.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        self._log.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 10))
+
+        # --- Barra de status (Git / resumo) ---
+        status_wrap = ctk.CTkFrame(self, fg_color="transparent")
+        status_wrap.grid(row=5, column=0, sticky="ew", padx=20, pady=(0, 14))
+        status_wrap.grid_columnconfigure(0, weight=1)
+        self._status_bar = ctk.CTkFrame(status_wrap, corner_radius=8, fg_color=("gray85", "gray25"))
+        self._status_bar.grid(row=0, column=0, sticky="ew")
+        self._status_label = ctk.CTkLabel(
+            self._status_bar,
+            text="Pronto",
+            anchor="w",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=("gray35", "gray75"),
+        )
+        self._status_label.pack(fill="x", padx=14, pady=8)
 
     def _on_close(self) -> None:
         self.destroy()
@@ -174,6 +219,44 @@ class MainWindow(ctk.CTk):
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         self._ui(self._update_action_states)
+        self._ui(self._update_status_bar)
+
+    def _update_status_bar(self) -> None:
+        if self._busy:
+            self._status_label.configure(
+                text="Executando comando Git…",
+                text_color="#93c5fd",
+            )
+        elif self._overview_loading:
+            self._status_label.configure(
+                text="Atualizando resumo do repositório…",
+                text_color="#93c5fd",
+            )
+        else:
+            self._status_label.configure(
+                text="Pronto",
+                text_color=("gray35", "gray75"),
+            )
+
+    def _update_current_project_display(self) -> None:
+        raw = self._selected_path.get().strip()
+        if not raw:
+            self._lbl_current_project.configure(text="Projeto atual: —", text_color="gray60")
+            self._lbl_current_project_sub.configure(
+                text="Selecione uma pasta ou um projeto salvo.",
+                text_color="gray60",
+            )
+            return
+        p = Path(raw)
+        name = p.name or raw
+        self._lbl_current_project.configure(
+            text=f"Projeto atual: {name}",
+            text_color=("gray10", "#F3F4F6"),
+        )
+        disp = str(p)
+        if len(disp) > 88:
+            disp = "…" + disp[-85:]
+        self._lbl_current_project_sub.configure(text=disp, text_color="gray60")
 
     def _update_action_states(self) -> None:
         path_ok, _ = git_service.folder_exists(self._selected_path.get())
@@ -215,6 +298,7 @@ class MainWindow(ctk.CTk):
         self._overview_loading = False
         self._overview_hint.configure(text="")
         self._update_action_states()
+        self._update_status_bar()
 
         is_git = bool(data.get("is_git_repo"))
         branch = str(data.get("branch", "-"))
@@ -291,6 +375,7 @@ class MainWindow(ctk.CTk):
         self._btn_refresh_overview.configure(state="disabled")
         self._overview_hint.configure(text="Atualizando resumo do repositório...")
         self._update_action_states()
+        self._update_status_bar()
 
         def worker() -> None:
             folder_name = Path(path_snapshot).name if path_snapshot else "—"
