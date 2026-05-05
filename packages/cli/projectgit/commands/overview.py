@@ -45,12 +45,24 @@ def run(args: argparse.Namespace) -> int:
         short = o.message if len(o.message) <= 120 else o.message[:117] + "…"
         status_line = f"⚠ {short}"
     elif o.has_changes:
-        status_line = "⚠ Alterações pendentes"
+        parts: list[str] = []
+        if o.modified_count:
+            parts.append(f"{o.modified_count} modificados")
+        if o.untracked_count:
+            parts.append(f"{o.untracked_count} não rastreados")
+        extra = f" ({', '.join(parts)})" if parts else ""
+        status_line = f"⚠ Alterações pendentes{extra}"
     else:
         status_line = "✔ Limpo"
 
     print(f"Projeto: {name}")
     print(f"Branch: {branch_disp}")
+    print(f"Modificados: {o.modified_count}")
+    print(f"Não rastreados: {o.untracked_count}")
     print(f"Status: {status_line}")
     print(f"Último commit: {last_disp}")
+    if o.changed_files:
+        print("Arquivos:")
+        for rel in o.changed_files:
+            print(f"  {rel}")
     return 0

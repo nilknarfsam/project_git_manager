@@ -92,6 +92,9 @@ def get_repository_overview(path: str) -> dict[str, object]:
         "has_changes": o.has_changes,
         "last_commit": o.last_commit,
         "message": o.message,
+        "modified_count": o.modified_count,
+        "untracked_count": o.untracked_count,
+        "changed_files": list(o.changed_files),
     }
 
 

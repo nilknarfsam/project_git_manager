@@ -26,3 +26,6 @@ class RepositoryOverview:
     has_changes: bool
     last_commit: str
     message: str
+    modified_count: int = 0
+    untracked_count: int = 0
+    changed_files: tuple[str, ...] = ()

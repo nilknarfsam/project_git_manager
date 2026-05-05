@@ -159,6 +159,39 @@ def has_pending_changes(path: str) -> GitCommandResult:
     return run_git_command(["status", "--porcelain"], path)
 
 
+def _parse_porcelain_status(stdout: str) -> tuple[int, int, tuple[str, ...]]:
+    """
+    Interpreta saída de `git status --porcelain` (formato v1).
+
+    Conta linhas que não são ignoradas (!!): `??` → não rastreado; demais → alteração rastreada.
+    """
+    modified = 0
+    untracked = 0
+    paths: list[str] = []
+    max_files = 500
+    for raw in (stdout or "").splitlines():
+        line = raw.rstrip("\r")
+        if not line.strip():
+            continue
+        if len(line) < 3 or line[2] != " ":
+            continue
+        xy = line[:2]
+        path_part = line[3:].strip()
+        if not path_part:
+            continue
+        if xy == "!!":
+            continue
+        if xy == "??":
+            untracked += 1
+            if len(paths) < max_files:
+                paths.append(path_part)
+        else:
+            modified += 1
+            if len(paths) < max_files:
+                paths.append(path_part)
+    return modified, untracked, tuple(paths)
+
+
 def get_repository_overview(path: str) -> RepositoryOverview:
     """Resumo do repositório (somente leitura)."""
     not_git_msg = "A pasta selecionada não é um repositório Git."
@@ -171,6 +204,9 @@ def get_repository_overview(path: str) -> RepositoryOverview:
             has_changes=False,
             last_commit="-",
             message="Nenhuma pasta selecionada.",
+            modified_count=0,
+            untracked_count=0,
+            changed_files=(),
         )
 
     resolved = Path(raw).expanduser().resolve()
@@ -185,6 +221,9 @@ def get_repository_overview(path: str) -> RepositoryOverview:
             has_changes=False,
             last_commit="-",
             message=not_git_msg,
+            modified_count=0,
+            untracked_count=0,
+            changed_files=(),
         )
 
     ok_lc = get_last_commit(raw)
@@ -192,7 +231,12 @@ def get_repository_overview(path: str) -> RepositoryOverview:
 
     ok_br = get_current_branch(raw)
     st = has_pending_changes(raw)
-    has_ch = bool((st.stdout or "").strip()) if st.success else False
+    if st.success:
+        mod_n, unt_n, files_t = _parse_porcelain_status(st.stdout or "")
+        has_ch = (mod_n + unt_n) > 0
+    else:
+        mod_n, unt_n, files_t = 0, 0, ()
+        has_ch = False
 
     if not ok_br.success:
         return RepositoryOverview(
@@ -202,6 +246,9 @@ def get_repository_overview(path: str) -> RepositoryOverview:
             has_changes=has_ch,
             last_commit=last_commit,
             message=ok_br.message or (ok_br.stderr or ok_br.stdout).strip() or "-",
+            modified_count=mod_n,
+            untracked_count=unt_n,
+            changed_files=files_t,
         )
 
     return RepositoryOverview(
@@ -211,6 +258,9 @@ def get_repository_overview(path: str) -> RepositoryOverview:
         has_changes=has_ch,
         last_commit=last_commit,
         message="Repositório carregado com sucesso.",
+        modified_count=mod_n,
+        untracked_count=unt_n,
+        changed_files=files_t,
     )
 
 

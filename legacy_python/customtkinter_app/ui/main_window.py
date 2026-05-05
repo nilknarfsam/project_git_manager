@@ -20,7 +20,7 @@ class MainWindow(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Gerenciador Git de Projetos")
-        self.geometry("920x740")
+        self.geometry("920x820")
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("dark-blue")
 
@@ -29,8 +29,14 @@ class MainWindow(ctk.CTk):
         self._busy = False
         self._overview_loading = False
 
+        self._path_overview_after_id: str | None = None
         self._build_layout()
-        self._selected_path.trace_add("write", lambda *_: self._ui(self._update_current_project_display))
+
+        def _on_path_var_write(*_args: object) -> None:
+            self._ui(self._update_current_project_display)
+            self._schedule_overview_refresh_debounced()
+
+        self._selected_path.trace_add("write", _on_path_var_write)
         self._refresh_saved_projects()
         self._update_action_states()
         self._update_current_project_display()
@@ -89,13 +95,23 @@ class MainWindow(ctk.CTk):
         )
         self._ov_branch_val = ctk.CTkLabel(overview_card, text="—", anchor="w", text_color=neutral)
         self._ov_branch_val.grid(row=3, column=1, padx=4, pady=2, sticky="w")
-        ctk.CTkLabel(overview_card, text="Status:", font=ctk.CTkFont(weight="bold")).grid(
+        ctk.CTkLabel(overview_card, text="Modificados:", font=ctk.CTkFont(weight="bold")).grid(
             row=4, column=0, padx=(12, 8), pady=2, sticky="w"
         )
+        self._ov_modified_val = ctk.CTkLabel(overview_card, text="—", anchor="w", text_color=neutral)
+        self._ov_modified_val.grid(row=4, column=1, padx=4, pady=2, sticky="w")
+        ctk.CTkLabel(overview_card, text="Não rastreados:", font=ctk.CTkFont(weight="bold")).grid(
+            row=5, column=0, padx=(12, 8), pady=2, sticky="w"
+        )
+        self._ov_untracked_val = ctk.CTkLabel(overview_card, text="—", anchor="w", text_color=neutral)
+        self._ov_untracked_val.grid(row=5, column=1, padx=4, pady=2, sticky="w")
+        ctk.CTkLabel(overview_card, text="Status:", font=ctk.CTkFont(weight="bold")).grid(
+            row=6, column=0, padx=(12, 8), pady=2, sticky="w"
+        )
         self._ov_status_val = ctk.CTkLabel(overview_card, text="—", anchor="w", text_color="gray60")
-        self._ov_status_val.grid(row=4, column=1, padx=4, pady=2, sticky="w")
+        self._ov_status_val.grid(row=6, column=1, padx=4, pady=2, sticky="w")
         ctk.CTkLabel(overview_card, text="Último commit:", font=ctk.CTkFont(weight="bold")).grid(
-            row=5, column=0, padx=(12, 8), pady=(2, 10), sticky="nw"
+            row=7, column=0, padx=(12, 8), pady=(2, 6), sticky="nw"
         )
         self._ov_last_commit_val = ctk.CTkLabel(
             overview_card,
@@ -105,7 +121,19 @@ class MainWindow(ctk.CTk):
             wraplength=700,
             text_color=neutral,
         )
-        self._ov_last_commit_val.grid(row=5, column=1, padx=4, pady=(2, 10), sticky="ew")
+        self._ov_last_commit_val.grid(row=7, column=1, padx=4, pady=(2, 6), sticky="ew")
+        ctk.CTkLabel(overview_card, text="Arquivos alterados", font=ctk.CTkFont(weight="bold")).grid(
+            row=8, column=0, columnspan=2, padx=12, pady=(4, 4), sticky="w"
+        )
+        self._ov_files_box = ctk.CTkTextbox(
+            overview_card,
+            height=108,
+            font=ctk.CTkFont(family="Consolas", size=11),
+            wrap="none",
+            activate_scrollbars=True,
+        )
+        self._ov_files_box.grid(row=9, column=0, columnspan=2, sticky="ew", padx=12, pady=(0, 12))
+        overview_card.grid_rowconfigure(9, weight=0)
 
         # --- Seleção de projeto ---
         proj_frame = ctk.CTkFrame(self, corner_radius=10, border_width=1, border_color=("gray70", "gray30"))
@@ -238,6 +266,38 @@ class MainWindow(ctk.CTk):
                 text_color=("gray35", "gray75"),
             )
 
+    def _schedule_overview_refresh_debounced(self) -> None:
+        if self._path_overview_after_id is not None:
+            self.after_cancel(self._path_overview_after_id)
+        self._path_overview_after_id = self.after(550, self._debounced_refresh_overview)
+
+    def _debounced_refresh_overview(self) -> None:
+        self._path_overview_after_id = None
+        if self._busy or self._overview_loading:
+            return
+        p = self._selected_path.get().strip()
+        if not p:
+            return
+        ok, _ = git_service.folder_exists(p)
+        if not ok:
+            return
+        self.refresh_repository_overview()
+
+    def _cancel_debounced_overview(self) -> None:
+        if self._path_overview_after_id is not None:
+            self.after_cancel(self._path_overview_after_id)
+            self._path_overview_after_id = None
+
+    def _set_overview_files_text(self, lines: list[str] | None) -> None:
+        box = self._ov_files_box
+        box.configure(state="normal")
+        box.delete("1.0", "end")
+        if lines:
+            box.insert("1.0", "\n".join(lines))
+        else:
+            box.insert("1.0", "—")
+        box.configure(state="disabled")
+
     def _update_current_project_display(self) -> None:
         raw = self._selected_path.get().strip()
         if not raw:
@@ -287,12 +347,20 @@ class MainWindow(ctk.CTk):
         last_commit: str,
         status_text: str,
         status_color: str,
+        modified_display: str | None,
+        untracked_display: str | None,
+        changed_files: list[str] | None,
     ) -> None:
         neutral = ("gray20", "#D1D5DB")
         self._ov_project_val.configure(text=folder_name, text_color=neutral)
         self._ov_branch_val.configure(text=branch, text_color=neutral)
         self._ov_last_commit_val.configure(text=last_commit, text_color=neutral)
         self._ov_status_val.configure(text=status_text, text_color=status_color)
+        mod_disp = modified_display if modified_display is not None else "—"
+        unt_disp = untracked_display if untracked_display is not None else "—"
+        self._ov_modified_val.configure(text=mod_disp, text_color=neutral)
+        self._ov_untracked_val.configure(text=unt_disp, text_color=neutral)
+        self._set_overview_files_text(changed_files)
 
     def _finish_repository_overview(self, folder_name: str, data: dict) -> None:
         self._overview_loading = False
@@ -305,6 +373,9 @@ class MainWindow(ctk.CTk):
         last_c = str(data.get("last_commit", "-"))
         has_ch = bool(data.get("has_changes"))
         message = str(data.get("message", ""))
+        mod_n = int(data.get("modified_count", 0) or 0)
+        unt_n = int(data.get("untracked_count", 0) or 0)
+        files = list(data.get("changed_files") or [])
 
         if not is_git:
             msg = message
@@ -315,6 +386,9 @@ class MainWindow(ctk.CTk):
                     last_commit="—",
                     status_text="—",
                     status_color="gray60",
+                    modified_display=None,
+                    untracked_display=None,
+                    changed_files=None,
                 )
             else:
                 self._apply_repository_overview_ui(
@@ -323,6 +397,9 @@ class MainWindow(ctk.CTk):
                     last_commit="-",
                     status_text="❌ Não é repositório Git",
                     status_color="#ff6b6b",
+                    modified_display=None,
+                    untracked_display=None,
+                    changed_files=None,
                 )
         elif branch == "-" and message and message != "Repositório carregado com sucesso.":
             short = message if len(message) <= 100 else message[:97] + "…"
@@ -332,14 +409,26 @@ class MainWindow(ctk.CTk):
                 last_commit=last_c,
                 status_text=f"⚠ {short}",
                 status_color="#fcc419",
+                modified_display=str(mod_n),
+                untracked_display=str(unt_n),
+                changed_files=files,
             )
         elif has_ch:
+            parts: list[str] = []
+            if mod_n:
+                parts.append(f"{mod_n} modificados")
+            if unt_n:
+                parts.append(f"{unt_n} não rastreados")
+            suffix = f" ({', '.join(parts)})" if parts else ""
             self._apply_repository_overview_ui(
                 folder_name=folder_name,
                 branch=branch,
                 last_commit=last_c,
-                status_text="⚠ Alterações pendentes",
+                status_text=f"⚠ Alterações pendentes{suffix}",
                 status_color="#fcc419",
+                modified_display=str(mod_n),
+                untracked_display=str(unt_n),
+                changed_files=files,
             )
         else:
             self._apply_repository_overview_ui(
@@ -348,6 +437,9 @@ class MainWindow(ctk.CTk):
                 last_commit=last_c,
                 status_text="✔ Limpo",
                 status_color="#69db7c",
+                modified_display="0",
+                untracked_display="0",
+                changed_files=[],
             )
 
         self._log_repository_overview(data)
@@ -356,9 +448,20 @@ class MainWindow(ctk.CTk):
         if bool(data.get("is_git_repo")):
             self._log_line("Resumo do repositório atualizado.\n", success=True)
             self._log_line(f"  Branch: {data.get('branch', '-')}\n")
+            mod_n = int(data.get("modified_count", 0) or 0)
+            unt_n = int(data.get("untracked_count", 0) or 0)
+            self._log_line(f"  Modificados: {mod_n}  |  Não rastreados: {unt_n}\n")
             st = "Alterações pendentes" if data.get("has_changes") else "Limpo"
             self._log_line(f"  Status: {st}\n")
             self._log_line(f"  Último commit: {data.get('last_commit', '-')}\n")
+            paths = list(data.get("changed_files") or [])
+            if paths:
+                self._log_line("  Arquivos:\n")
+                max_lines = 40
+                for rel in paths[:max_lines]:
+                    self._log_line(f"    • {rel}\n")
+                if len(paths) > max_lines:
+                    self._log_line(f"    … e mais {len(paths) - max_lines} arquivo(s).\n")
         else:
             msg = str(data.get("message", "Erro desconhecido."))
             if "Nenhuma pasta" in msg:
@@ -368,6 +471,7 @@ class MainWindow(ctk.CTk):
 
     def refresh_repository_overview(self) -> None:
         """Atualiza o card de resumo em thread; desativa o botão durante a leitura."""
+        self._cancel_debounced_overview()
         if self._overview_loading:
             return
         path_snapshot = self._selected_path.get().strip()
@@ -388,6 +492,9 @@ class MainWindow(ctk.CTk):
                     "has_changes": False,
                     "last_commit": "-",
                     "message": f"Erro ao acessar a pasta: {e}",
+                    "modified_count": 0,
+                    "untracked_count": 0,
+                    "changed_files": [],
                 }
             except Exception as e:
                 data = {
@@ -396,6 +503,9 @@ class MainWindow(ctk.CTk):
                     "has_changes": False,
                     "last_commit": "-",
                     "message": f"Erro inesperado: {e}",
+                    "modified_count": 0,
+                    "untracked_count": 0,
+                    "changed_files": [],
                 }
             self._ui(
                 lambda f=folder_name, d=data: self._finish_repository_overview(f, d),
@@ -406,6 +516,7 @@ class MainWindow(ctk.CTk):
     def _select_folder(self) -> None:
         folder = filedialog.askdirectory(title="Selecionar pasta do projeto")
         if folder:
+            self._cancel_debounced_overview()
             self._selected_path.set(str(Path(folder).resolve()))
             self._log_line(f"Pasta selecionada: {folder}\n")
             self._update_action_states()
@@ -467,6 +578,7 @@ class MainWindow(ctk.CTk):
             return
         for p in project_service.get_projects():
             if p["name"] == choice:
+                self._cancel_debounced_overview()
                 self._selected_path.set(p["path"])
                 self._log_line(f"Projeto carregado: {choice} → {p['path']}\n")
                 self._update_action_states()
@@ -627,6 +739,8 @@ class MainWindow(ctk.CTk):
             if rc != 0:
                 self._log_line("git status reportou um erro.\n", error=True)
             self._set_busy(False)
+            if rc == 0:
+                self._ui(self.refresh_repository_overview)
 
         threading.Thread(target=worker, daemon=True).start()
 
