@@ -1,3 +1,14 @@
+<!-- organizacao-github:inicio -->
+> [!NOTE]
+> **📌 Organização do GitHub (22/10/2026): 📦 ARQUIVAR**
+>
+> Parou no meio da migração para Electron, em maio.
+>
+> **Como fazer:** Settings → lá embaixo em **Danger Zone** → **Archive this repository**. Fica só leitura e dá para desarquivar depois.
+>
+> _Nota temporária do Claude. Some quando a organização terminar._
+<!-- organizacao-github:fim -->
+
 # Project Git Manager
 
 **Gerenciador Git de Projetos** — aplicação desktop para trabalhar com repositórios Git por interface gráfica (clone, status, pull, commit/push, favoritos e integração com VS Code).
